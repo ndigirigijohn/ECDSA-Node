@@ -1,15 +1,19 @@
-const express = require("express");
+import express from "express";
+import cors from "cors";
+import * as sec from 'ethereum-cryptography/secp256k1'
+
+const secp = sec.secp256k1
+
 const app = express();
-const cors = require("cors");
 const port = 3042;
 
 app.use(cors());
 app.use(express.json());
 
 const balances = {
-  "0x1": 100,
-  "0x2": 50,
-  "0x3": 75,
+  "0x02a39c5b3f7c94213431660ff072bb8846a9a3996ed9a6d6fa04a5801b0a929a98": 100,
+  "0x025e6a1b31563ba8c9fb057573ae12b8c76c83fd9489714cd0daf775180c07d633": 50,
+  "0x039487fdac9c0ff9768e411a5869d9c865d2bfb55d9aae822ee65c4c057f53cdea": 75,
 };
 
 app.get("/balance/:address", (req, res) => {
@@ -19,7 +23,13 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, amount } = req.body;
+  const {data, signature, msgHash} = req.body;
+  const { sender, recipient, amount } = data;  
+  const { r, s, recovery } = signature;
+  const isSigned = secp.verify({ r: BigInt(`0x${r}`), s: BigInt(`0x${s}`), recovery}, msgHash, sender.slice(2));
+  if (!isSigned) {
+    return res.status(400).send({balance: balances[sender] ,message: "Invalid signature!" });
+  }
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
